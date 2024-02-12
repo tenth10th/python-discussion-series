@@ -25,3 +25,6 @@ def simulated_file_like_object_operation():
 if __name__ == '__main__':
 
     simulated_file_like_object_operation()
+
+def hello():
+    print("Hello!")

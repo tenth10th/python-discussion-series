@@ -43,9 +43,11 @@ def expensive_generative_fixture():
     print('\n(expensive generative fixture shutting down...)')
     f.close()
     # These will never be reached, because PyTest will instantiate the generator,
-    # but only call next() on it once (before the test case(s) in the selected scope)
-    yield "2"
-    yield "3"
+    # but only call next() on it once (before the test case(s) in the selected scope).
+    # (actually, the current version PyTest will throw an error in this case!)
+    # (so we have to comment out the additional yields for this fixture to be considered valid...)
+    # yield "2"
+    # yield "3"
 
 def iterable_generator_factory():
     i = 0
@@ -80,6 +82,11 @@ def test_get_line_three_roughly(reset_simulated_file):
     # Assert that our function is close enough (ignoring whitespace, including line feed)
     assert get_line_three(reset_simulated_file).strip() == "this is line 3"
 
+def test_with_no_assertions():
+    # Just trying to prove that some_function still takes single or multiple arguments!
+    some_function(1)
+    some_function(1, 2)
+
 
 def get_line_three(from_file):
     i = 0
@@ -90,3 +97,113 @@ def get_line_three(from_file):
         i += 1
     print("(I guess there is no line 3?!)")
     raise Exception("get_line_three called on a file with less than three lines!")
+
+def test_shared_toplevel_fixtures(toplevel_fixture):
+    print("toplevel_fixture value:", toplevel_fixture)
+
+# def test_shared_fixtures(example_fixture):
+#     print("example_fixture value:", example_fixture)
+
+def some_function(*args):
+    return len(args)
+
+
+@pytest.mark.parametrize(("numbers", "expected_total"), [
+    ([1,], 1),
+    ([1, 2], 3),
+    ([1, 2, 3], 6),
+    ([5, 6, 7, 8], 26),
+])
+def test_sum(numbers, expected_total):
+    assert sum(numbers) == expected_total
+
+
+class SumTestData:
+    def __init__(self, numbers, expected_total):
+        self.numbers = numbers
+        self.expected_total = expected_total
+
+@pytest.fixture(params=[
+    SumTestData(numbers=[1, 2], expected_total=3),
+    SumTestData(numbers=[1, 2, 3], expected_total=6),
+])
+def sum_data(request):
+    return request.param
+
+def test_sum_with_fixture(sum_data):
+    print("Testing with Number:", sum_data)
+    assert sum(sum_data.numbers) == sum_data.expected_total
+
+
+@pytest.fixture(params=['a', 'b', 'c', 'd', 'e', 'f'])
+def x_coords(request):
+    return request.param
+
+@pytest.fixture(params=[1, 2, 3, 4, 5, 6])
+def y_coords(request):
+    return request.param
+
+def battleship(x, y):
+    # Pretend this doing something really complicated
+    if (x == 'c' and y == 5):
+        raise Exception("Um, Actually, C5 is not a valid move in this context...")
+    print(f"{x}{y}")
+
+def test_battleship(x_coords, y_coords):
+    if (x_coords == 'c' and y_coords == 5):
+        pytest.skip("C5 is not valid in this context, but we haven't handled those rules yet...")
+    battleship(x_coords, y_coords)
+
+# Multiple fixtures that provide parameters, will 
+
+# More fun with Arguments...
+
+def battleship_2(x, y=1, z=2):
+    print(f"{x}{y}{z}")
+
+# X is required, Y is optional (and defaults to 1)
+def battleship_3(x, y=1):
+    print(f"{x}{y}")
+
+# The * operator implies 0 or more positional arguments
+def battleship_4(x, y, *z):
+    print(f"{x}{y}{z}")
+
+# The ** operator implies 0 or more keyword arguments
+def battleship_5(x, y, **z):
+    print(f"{x}{y}{z}")
+
+# This just feels rude?
+def battleship_6(x, y, *, z):
+    print(f"{x}{y}{z}")
+
+# But this makes the optional z argument more explicit
+def battleship_7(x, y, *, z=3):
+    print(f"{x}{y}{z}")
+
+import functools
+
+battleship_a = functools.partial(battleship, x='a')
+
+def check_length(indexable, max_size):
+    if len(indexable) < max_size:
+        return False
+    return True
+
+"""
+Color (Red, Black)
+
+Suits ('Club', 'Spade', 'Diamond', 'Heart')
+Value ('Ace', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'Jack', 'Queen', 'King')
+
+A Deck Of Cards = Suit * Value (Cartesian Product of all Suits and all Values)
+"""
+import itertools
+
+two_letter_combos = itertools.combinations("ABCDEF", 2)  # Get all 15 unique combinations of two letters
+two_letter_perms = itertools.permutations("ABCDEF", 2)   # Get all 51 ordered permutations of two letters
+
+print()
+print("Combos:", len(list(two_letter_combos)))
+print("Perms:", len(list(two_letter_perms)))
+print()
