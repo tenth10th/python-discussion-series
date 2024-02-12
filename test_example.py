@@ -10,6 +10,10 @@ from io import StringIO
 # (Only called once, even if there are multiple test cases in this python module / file)
 @pytest.fixture(scope="module")
 def simulated_file():
+    """
+    Simulates a file using an in-memory "file-like" object - faster and more reliable than a real file
+    (while having a near-identical identical API)
+    """
     print("\n(creating a new simulated file)")
     # If we pretend that this is a huge file, that takes a long time to initialize...
     # Only creating it once per module would save some time...
@@ -19,9 +23,12 @@ def simulated_file():
 
 @pytest.fixture(scope="function")
 def reset_simulated_file(simulated_file):
+    """
+    "higher order" fixture: Resets the position of simulated_file's "file" to 0 before returning
+    """
     print("\n(seeking simulated file to position 0)")
-    # But, we want each test to start with the file at position zero
-    # (each time this fixture is used, per function)
+    # we want each test to start with the file at position zero
+    # (each time this fixture is used - per function!)
     simulated_file.seek(0)
     return simulated_file
 
@@ -34,6 +41,9 @@ def reset_simulated_file(simulated_file):
 # additional yields will not be reached!
 @pytest.fixture(scope="function")
 def expensive_generative_fixture():
+    """
+    Example of a generator fixture, which uses yield to implement "before" and "after" behaviors
+    """
     # The code up to and including the yield, gets run _before_ the test case that depended on this fixture...
     print('\n(expensive generative fixture starting up...)')
     f = open('some_file', 'w')
@@ -50,12 +60,21 @@ def expensive_generative_fixture():
     # yield "3"
 
 def iterable_generator_factory():
+    """
+    More typical example of a Generator:
+    Calling it returns iterable instances of a generator
+    (functions that yield are sort of like "generator factories"?)
+    """
     i = 0
     while i < 10:
+        # Return i, and suspend here until the next iteration...
         yield i
+        # Continue here after the next iteration...
         i += 1
+    # (Automatically raises StopIteration at this point)
 
 """
+gf = iterable_generator_factory()
 for x in gf:
 
 is basically doing something like:
@@ -137,19 +156,30 @@ def test_sum_with_fixture(sum_data):
 
 @pytest.fixture(params=['a', 'b', 'c', 'd', 'e', 'f'])
 def x_coords(request):
+    """
+    This fixture has parameters - It will cause a test case to run repeatedly
+    (once per parameter value), creating multiple "items", a.k.a. "nodes"
+    """
     return request.param
 
 @pytest.fixture(params=[1, 2, 3, 4, 5, 6])
 def y_coords(request):
+    """
+    Another one, but with numerical parameters instead of letters
+    """
     return request.param
 
 def battleship(x, y):
-    # Pretend this doing something really complicated
+    # Pretend this function is doing something really complicated and worth testing...
     if (x == 'c' and y == 5):
         raise Exception("Um, Actually, C5 is not a valid move in this context...")
     print(f"{x}{y}")
 
 def test_battleship(x_coords, y_coords):
+    """
+    This test depends on two parameterized fixtures - it gets the cartesian product of all the parameters!
+    (very similar to what itertools.combinations does - 6 letters x 6 numbers = 36 letter/numbers)
+    """
     if (x_coords == 'c' and y_coords == 5):
         pytest.skip("C5 is not valid in this context, but we haven't handled those rules yet...")
     battleship(x_coords, y_coords)
